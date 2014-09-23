@@ -211,6 +211,32 @@ static void draw() {
 
 // コールバック関数
 static void nearCallback(void *data, dGeomID o1, dGeomID o2) {
+  int i,n;
+
+  dBodyID b1 = dGeomGetBody(o1);
+  dBodyID b2 = dGeomGetBody(o2);
+  if(b1 && b2 && dAreConnected(b1, b2))
+    return;
+  //if()
+  //  return;
+  const int N = 4;
+  dContact contact[N];
+  n = dCollide (o1,o2,N,&contact[0].geom,sizeof(dContact));
+  if(n > 0) {
+    for(i=0; i<n; i++) {
+      contact[i].surface.mode = dContactSlip1 | dContactSlip2 | dContactSoftERP | dContactSoftCFM | dContactApprox1;
+      if(dGeomGetClass(o1) == dSphereClass || dGeomGetClass(o2) == dSphereClass)
+        contact[i].surface.mu = 20;
+      else
+        contact[i].surface.mu = 0.5;
+      contact[i].surface.slip1 = 0.0;
+      contact[i].surface.slip2 = 0.0;
+      contact[i].surface.soft_erp = 0.8;
+      contact[i].surface.soft_cfm = 0.01;
+      dJointID c = dJointCreateContact (world,contactgroup,contact+i);
+      dJointAttach (c,dGeomGetBody(o1),dGeomGetBody(o2));
+    }
+  }
 
 }
 
@@ -295,10 +321,12 @@ void command(int cmd)
 
 // シミュレーションループ
 static void simLoop(int pause) {
+
   control();
 
   dSpaceCollide(space,0,&nearCallback);  // 衝突検出計算
   dWorldStep(world,0.01);                // 1ステップ進める
+  printf("kokomade---\n");
   dJointGroupEmpty(contactgroup);        // 衝突変数をリセット
 
   draw();  // ロボットの描画
@@ -327,7 +355,7 @@ int main (int argc, char *argv[]) {
   space        = dHashSpaceCreate(0);
   contactgroup = dJointGroupCreate(0);
 
-  dWorldSetGravity(world,0,0,0);
+  dWorldSetGravity(world,0,0,-9.0);
   dWorldSetERP(world,1.0);          // ERPの設定
   dWorldSetCFM(world,0.0);          // CFMの設定
   ground = dCreatePlane(space,0,0,1,0);
